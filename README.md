@@ -1,0 +1,1 @@
+# Algoritma-Local-Binary-Patter-Histogram-to-Detect-victim

@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>History Deteksi Manusia</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background: #f0f0f0;
+    }
+    h1 {
+      color: #333;
+    }
+    .history-item {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+      padding: 15px;
+    }
+    .history-item img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 6px;
+    }
+    .timestamp, .similarity {
+      color: #666;
+      margin-top: 10px;
+      font-size: 14px;
+    }
+    .pagination {
+      display: flex;
+      justify-content: center;
+      margin-top: 20px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .pagination button {
+      padding: 6px 12px;
+      border: none;
+      border-radius: 4px;
+      background: #007BFF;
+      color: #fff;
+      cursor: pointer;
+    }
+    .pagination button.active {
+      background: #0056b3;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h1>History Deteksi Manusia</h1>
+  <div id="history-container">Memuat data...</div>
+  <div class="pagination" id="pagination-container"></div>
+
+  <!-- Firebase SDK -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
+    import {
+      getDatabase,
+      ref,
+      get,
+      child
+    } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
+
+    const firebaseConfig = {
+  apiKey: "AIzaSyDbyKdO2iXimuNW5wu1Y0cW0umezZUPurs",
+  authDomain: "lbph-47b5a.firebaseapp.com",
+  databaseURL: "https://lbph-47b5a-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "lbph-47b5a",
+  storageBucket: "lbph-47b5a.firebasestorage.app",
+  messagingSenderId: "827201696484",
+  appId: "1:827201696484:web:2c77108bf638ab4f7b72f1",
+  measurementId: "G-ZTF2G0GEJV"
+};
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    const container = document.getElementById("history-container");
+    const paginationContainer = document.getElementById("pagination-container");
+
+    const perPage = 5;
+    let allKeys = [];
+
+    async function fetchAllKeys() {
+      const snapshot = await get(ref(db, 'history'));
+      if (!snapshot.exists()) return [];
+
+      const data = snapshot.val();
+      return Object.keys(data).sort((a, b) => b - a); // terbaru dulu
+    }
+
+    async function loadPageData(keys) {
+      const dataRef = ref(db, 'history');
+      const data = [];
+
+      for (const key of keys) {
+        const snap = await get(child(dataRef, key));
+        if (snap.exists()) {
+          data.push([key, snap.val()]);
+        }
+      }
+
+      return data;
+    }
+
+    function renderToHTML(entries) {
+      container.innerHTML = "";
+      if (entries.length === 0) {
+        container.innerHTML = "<p>Tidak ada data.</p>";
+        return;
+      }
+
+      for (const [key, value] of entries) {
+        const div = document.createElement("div");
+        div.className = "history-item";
+
+        const img = document.createElement("img");
+        img.src = `data:image/jpeg;base64,${value.image}`;
+
+        const time = document.createElement("div");
+        time.className = "timestamp";
+        time.textContent = `Terdeteksi pada: ${value.timestamp}`;
+
+        const similarity = document.createElement("div");
+        similarity.className = "similarity";
+        similarity.textContent = `Kemiripan: ${value.similarity || 'Tidak tersedia'}`;
+
+        div.appendChild(img);
+        div.appendChild(time);
+        div.appendChild(similarity);
+        container.appendChild(div);
+      }
+    }
+
+    function renderPagination(totalPages, currentPage) {
+      paginationContainer.innerHTML = "";
+
+      for (let i = 1; i <= totalPages; i++) {
+        const btn = document.createElement("button");
+        btn.textContent = i;
+        if (i === currentPage) btn.classList.add("active");
+
+        btn.addEventListener("click", () => loadPage(i));
+        paginationContainer.appendChild(btn);
+      }
+    }
+
+    async function loadPage(pageNumber) {
+      const totalPages = Math.ceil(allKeys.length / perPage);
+      if (pageNumber < 1 || pageNumber > totalPages) return;
+
+      const startIdx = (pageNumber - 1) * perPage;
+      const pageKeys = allKeys.slice(startIdx, startIdx + perPage);
+
+      const pageData = await loadPageData(pageKeys);
+      renderToHTML(pageData);
+      renderPagination(totalPages, pageNumber);
+    }
+
+    async function init() {
+      allKeys = await fetchAllKeys();
+      loadPage(1);
+    }
+
+    init();
+  </script>
+</body>
+</html>
